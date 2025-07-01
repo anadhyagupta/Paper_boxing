@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Paper Boxing Game</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <h1>Paper Boxing</h1>
+
+    <!-- ✅ Live Instruction Box -->
+    <div id="liveMessage" class="live-message">
+        Welcome! Player 1 and Player 2, start placing numbers (1–15) on your grids.
+    </div>
+
+    <!-- ✅ Setup Grids -->
+    <div class="game-container">
+        <div class="player-board player1-board">
+            <h3 class="player-title">Player 1: Fill your grid below:</h3>
+            <div id="player1Grid" class="grid"></div>
+            <button id="player1Submit">Submit Numbers</button>
+        </div>
+
+        <div class="player-board player2-board">
+            <h3 class="player-title">Player 2: Fill your grid below:</h3>
+            <div id="player2Grid" class="grid"></div>
+            <button id="player2Submit">Submit Numbers</button>
+        </div>
+    </div>
+
+    <!-- ✅ Game Phase Grids -->
+    <div id="gamePhase" class="hidden">
+        <h2>Game Phase</h2>
+        <div class="game-container">
+            <div class="player-board">
+                <div class="player-title">Player 1</div>
+                <div class="grid" id="player1GameGrid"></div>
+            </div>
+            <div class="player-board">
+                <div class="player-title">Player 2</div>
+                <div class="grid" id="player2GameGrid"></div>
+            </div>
+        </div>
+
+        <!-- ✅ Scoreboard Table -->
+        <div class="scoreboard">
+            <h3>Scoreboard</h3>
+            <table id="scoreTable">
+                <thead>
+                    <tr>
+                        <th>Round</th>
+                        <th>Player 1</th>
+                        <th>Player 2</th>
+                        <th>Winner</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- ✅ Final Result Section -->
+        <div id="finalResults" class="hidden">
+            <h2>🎉 Final Results</h2>
+            <div id="resultsText"></div>
+            <button id="restartBtn">Restart</button>
+        </div>
+    </div>
+
+    <!-- ✅ Rules Button -->
+    <button id="rulesBtn" class="rules-button">Rules ?</button>
+
+    <!-- ✅ Rules Popup -->
+    <div id="rulesPopup" class="rules-popup hidden" tabindex="-1">
+        <div class="rules-content">
+            <span class="close-btn" onclick="toggleRules()">×</span>
+            <h2>📜 Game Rules</h2>
+            <ul>
+                <li>Each player gets a 4×4 grid and fills it with numbers 1–15 (top-left cell must stay blank).</li>
+                <li>After filling, boards are hidden. Players take turns selecting an adjacent cell from the last chosen one.</li>
+                <li>Players compare selected numbers. Higher number scores 1 point.</li>
+                <li>Game continues for <strong>15 rounds</strong>. Each cell can be used only once.</li>
+                <li>Diagonal movement is allowed.</li>
+                <li>If a player can't move, they skip remaining rounds.</li>
+                <li>Player with highest score wins. Draws are possible.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ✅ Script File -->
+    <script src="script.js"></script>
+</body>
+
+</html>
