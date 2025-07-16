@@ -1,7 +1,8 @@
 const gameState = {
     currentPhase: 'setup',
+    currentPlayer: 1,
     round: 0,
-    maxRounds: 50,
+    maxRounds: 15,
     player1: {
         grid: Array(16).fill(null),
         visited: new Set([0]),
@@ -21,114 +22,173 @@ const gameState = {
     rounds: []
 };
 
-// DOM Elements
-const player1Grid = document.getElementById('player1Grid');
-const player2Grid = document.getElementById('player2Grid');
-const player1Submit = document.getElementById('player1Submit');
-const player2Submit = document.getElementById('player2Submit');
-const setupPhase = document.querySelector('.setup-phase');
-const gamePhase = document.getElementById('gamePhase');
-const player1GameGrid = document.getElementById('player1GameGrid');
-const player2GameGrid = document.getElementById('player2GameGrid');
-const scoreTable = document.getElementById('scoreTable').querySelector('tbody');
-const finalResults = document.getElementById('finalResults');
-const resultsText = document.getElementById('resultsText');
+const elements = {
+    liveMessage: document.getElementById('liveMessage'),
+    currentPlayerBoard: document.getElementById('currentPlayerBoard'),
+    currentPlayerGrid: document.getElementById('currentPlayerGrid'),
+    submitNumbers: document.getElementById('submitNumbers'),
+    gamePhase: document.getElementById('gamePhase'),
+    currentGameBoard: document.getElementById('currentGameBoard'),
+    currentGameGrid: document.getElementById('currentGameGrid'),
+    currentGamePlayerTitle: document.getElementById('currentGamePlayerTitle'),
+    turnIndicator: document.getElementById('turnIndicator'),
+    currentRound: document.getElementById('currentRound'),
+    scoreTable: document.getElementById('scoreTable').querySelector('tbody'),
+    finalResults: document.getElementById('finalResults'),
+    resultsText: document.getElementById('resultsText'),
+    restartBtn: document.getElementById('restartBtn'),
+    rulesBtn: document.getElementById('rulesBtn'),
+    rulesPopup: document.getElementById('rulesPopup')
+};
 
-// ✅ Live Message Box Updater
-function updateMessage(text) {
-    document.getElementById('liveMessage').textContent = text;
+function initGame() {
+    showPlayerSetup(1);
+
+    elements.submitNumbers.addEventListener('click', handleSubmit);
+    elements.restartBtn.addEventListener('click', () => location.reload());
+    elements.rulesBtn.addEventListener('click', toggleRules);
+    document.querySelector('.close-btn').addEventListener('click', toggleRules);
+
+    updateMessage("Player 1, start placing numbers (1–15) on your grid.");
 }
 
-// === SETUP ===
-function createSetupGrid(gridElement, playerNum) {
-    gridElement.innerHTML = '';
+function showPlayerSetup(playerNum) {
+    gameState.currentPlayer = playerNum;
+    elements.currentPlayerBoard.className = `player-board player${playerNum}-board`;
+    elements.currentPlayerBoard.querySelector('.player-title').textContent =
+        `Player ${playerNum}: Fill your grid below:`;
+    createSetupGrid(playerNum);
+}
+
+function createSetupGrid(playerNum) {
+    elements.currentPlayerGrid.innerHTML = '';
+    const player = gameState[`player${playerNum}`];
+
     for (let i = 0; i < 16; i++) {
         const cell = document.createElement('div');
         cell.className = 'cell';
+        cell.dataset.index = i;
+
         if (i === 0) {
             cell.classList.add('empty');
         } else {
-            cell.addEventListener('click', () => {
-                const player = gameState[`player${playerNum}`];
-                if (player.grid[i] === null && player.nextNumber <= 15) {
-                    player.grid[i] = player.nextNumber;
-                    cell.textContent = player.nextNumber;
-                    cell.classList.add('selected');
-                    updateMessage(`Player ${playerNum}: Placed number ${player.nextNumber}`);
-                    player.nextNumber++;
-                }
-            });
+            cell.addEventListener('click', () => handleCellClick(cell, i, playerNum));
+            if (player.grid[i] !== null) {
+                cell.textContent = player.grid[i];
+                cell.classList.add('selected');
+            }
         }
-        gridElement.appendChild(cell);
+
+        elements.currentPlayerGrid.appendChild(cell);
     }
 }
 
-function validateGrid(playerNum) {
-    const grid = gameState[`player${playerNum}`].grid;
-    const numbers = grid.filter(v => v !== null);
-    return numbers.length === 15 && Math.min(...numbers) === 1 && Math.max(...numbers) === 15;
+function handleCellClick(cell, index, playerNum) {
+    const player = gameState[`player${playerNum}`];
+
+    if (player.grid[index] === null && player.nextNumber <= 15) {
+        player.grid[index] = player.nextNumber;
+        cell.textContent = player.nextNumber;
+        cell.classList.add('selected');
+        updateMessage(`Player ${playerNum}: Placed number ${player.nextNumber}`);
+        player.nextNumber++;
+    }
 }
 
-player1Submit.onclick = () => {
-    if (validateGrid(1)) {
-        player1Submit.disabled = true;
-        updateMessage("Player 1 grid locked! Now Player 2 can submit.");
-        if (player2Submit.disabled) startGame();
-    } else {
-        alert("Fill numbers 1–15 exactly once.");
-    }
-};
+function handleSubmit() {
+    const playerNum = gameState.currentPlayer;
+    const player = gameState[`player${playerNum}`];
+    const numbers = player.grid.filter(v => v !== null);
+    const uniqueNumbers = new Set(numbers);
 
-player2Submit.onclick = () => {
-    if (validateGrid(2)) {
-        player2Submit.disabled = true;
-        updateMessage("Both players have submitted. Game starting...");
-        if (player1Submit.disabled) startGame();
+    if (numbers.length === 15 && uniqueNumbers.size === 15) {
+        if (playerNum === 1) {
+            showPlayerSetup(2);
+            updateMessage("Player 2, now place your numbers (1–15) on your grid.");
+        } else {
+            startGame();
+        }
     } else {
-        alert("Fill numbers 1–15 exactly once.");
+        alert("Please fill numbers 1–15 exactly once with no duplicates.");
     }
-};
+}
 
-// === GAME ===
 function startGame() {
-    gamePhase.classList.remove('hidden');
-    createGameGrid(player1GameGrid, 1);
-    createGameGrid(player2GameGrid, 2);
+    gameState.currentPhase = 'game';
+    elements.currentPlayerBoard.classList.add('hidden');
+    elements.gamePhase.classList.remove('hidden');
     startNextRound();
 }
 
-function createGameGrid(gridElement, playerNum) {
+function startNextRound() {
+    gameState.round++;
+    if (gameState.round > gameState.maxRounds) return endGame();
+
+    elements.currentRound.textContent = gameState.round;
+
+    gameState.player1.lastValue = null;
+    gameState.player2.lastValue = null;
+
+    gameState.currentPlayer = 1;
+    showCurrentPlayerTurn();
+}
+
+function showCurrentPlayerTurn() {
+    const playerNum = gameState.currentPlayer;
     const player = gameState[`player${playerNum}`];
-    gridElement.innerHTML = '';
+
+    elements.currentGameBoard.className = `player-board player${playerNum}-board`;
+    elements.currentGamePlayerTitle.textContent = `Player ${playerNum}`;
+    elements.turnIndicator.textContent = `Player ${playerNum}'s turn`;
+    updateMessage(`Player ${playerNum}, select your next move.`);
+
+    createGameGrid(playerNum);
+
+    const validMoves = getValidMoves(playerNum);
+    if (validMoves.length === 0) {
+        player.lastValue = null;
+        switchPlayerTurn();
+    } else {
+        setupMoveSelection(playerNum, validMoves);
+    }
+}
+
+function createGameGrid(playerNum) {
+    elements.currentGameGrid.innerHTML = '';
+    const player = gameState[`player${playerNum}`];
+
     for (let i = 0; i < 16; i++) {
         const cell = document.createElement('div');
         cell.className = 'cell';
+        cell.dataset.index = i;
+
         if (i === 0) {
             cell.classList.add('empty');
         } else {
             cell.textContent = player.grid[i] || '';
+            if (player.visited.has(i)) {
+                cell.classList.add('visited');
+            }
+            if (i === player.currentPosition) {
+                cell.classList.add('selected');
+            }
         }
-        gridElement.appendChild(cell);
+
+        elements.currentGameGrid.appendChild(cell);
     }
 }
 
-function updateGameGrid(grid, playerNum) {
+function getValidMoves(playerNum) {
     const player = gameState[`player${playerNum}`];
-    const cells = grid.querySelectorAll('.cell');
-    cells.forEach((cell, i) => {
-        cell.className = 'cell';
-        if (i === 0) cell.classList.add('empty');
-        if (player.visited.has(i)) cell.classList.add('visited');
-        if (i === player.currentPosition) cell.classList.add('selected');
-        cell.textContent = player.grid[i] || '';
-        cell.onclick = null;
-    });
+    const adj = getAdjacent(player.currentPosition);
+    return adj.filter(i => !player.visited.has(i));
 }
 
 function getAdjacent(index) {
     const row = Math.floor(index / 4);
     const col = index % 4;
     const adj = [];
+
     for (let r = row - 1; r <= row + 1; r++) {
         for (let c = col - 1; c <= col + 1; c++) {
             const i = r * 4 + c;
@@ -140,21 +200,9 @@ function getAdjacent(index) {
     return adj;
 }
 
-let turnState = {
-    player1Ready: false,
-    player2Ready: false
-};
-
-function setupMoveSelection(playerNum, grid) {
+function setupMoveSelection(playerNum, validMoves) {
     const player = gameState[`player${playerNum}`];
-    const validMoves = getAdjacent(player.currentPosition).filter(i => !player.visited.has(i));
-    const cells = grid.querySelectorAll('.cell');
-
-    if (validMoves.length === 0) {
-        player.lastValue = null;
-        markTurnReady(playerNum);
-        return;
-    }
+    const cells = elements.currentGameGrid.querySelectorAll('.cell');
 
     validMoves.forEach(i => {
         cells[i].classList.add('possible-move');
@@ -162,53 +210,21 @@ function setupMoveSelection(playerNum, grid) {
             player.currentPosition = i;
             player.visited.add(i);
             player.lastValue = player.grid[i];
-            updateGameGrid(grid, playerNum);
-            markTurnReady(playerNum);
+            switchPlayerTurn();
         };
     });
 }
 
-function markTurnReady(playerNum) {
-    turnState[`player${playerNum}Ready`] = true;
-    if (turnState.player1Ready && turnState.player2Ready) {
-        checkAndCompare();
-        setTimeout(startNextRound, 500);
-    }
-}
-
-function startNextRound() {
-    gameState.round++;
-    if (gameState.round > gameState.maxRounds) return endGame();
-
-    turnState.player1Ready = false;
-    turnState.player2Ready = false;
-
-    updateMessage(`Round ${gameState.round}: Both players, choose your next move.`);
-    updateGameGrid(player1GameGrid, 1);
-    updateGameGrid(player2GameGrid, 2);
-
-    const p1Moves = getAdjacent(gameState.player1.currentPosition).filter(i => !gameState.player1.visited.has(i));
-    const p2Moves = getAdjacent(gameState.player2.currentPosition).filter(i => !gameState.player2.visited.has(i));
-
-    if (p1Moves.length > 0) {
-        setupMoveSelection(1, player1GameGrid);
+function switchPlayerTurn() {
+    if (gameState.currentPlayer === 1) {
+        gameState.currentPlayer = 2;
     } else {
-        gameState.player1.lastValue = null;
-        turnState.player1Ready = true;
-    }
-
-    if (p2Moves.length > 0) {
-        setupMoveSelection(2, player2GameGrid);
-    } else {
-        gameState.player2.lastValue = null;
-        turnState.player2Ready = true;
-    }
-
-    // If both players stuck, end game
-    if (turnState.player1Ready && turnState.player2Ready && p1Moves.length === 0 && p2Moves.length === 0) {
+        gameState.currentPlayer = 1;
         checkAndCompare();
-        return endGame();
+        setTimeout(startNextRound, 0);
+        return;
     }
+    showCurrentPlayerTurn();
 }
 
 function checkAndCompare() {
@@ -249,65 +265,44 @@ function checkAndCompare() {
 }
 
 function updateScoreboard() {
-    scoreTable.innerHTML = '';
-    for (const r of gameState.rounds) {
+    elements.scoreTable.innerHTML = '';
+    gameState.rounds.forEach(round => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${r.round}</td>
-            <td>${r.player1}</td>
-            <td>${r.player2}</td>
-            <td>${r.winner}</td>
-        `;
-        scoreTable.appendChild(tr);
-    }
+      <td>${round.round}</td>
+      <td>${round.player1}</td>
+      <td>${round.player2}</td>
+      <td>${round.winner}</td>
+    `;
+        elements.scoreTable.appendChild(tr);
+    });
 }
 
 function endGame() {
-    const p1 = gameState.player1.score;
-    const p2 = gameState.player2.score;
+    const p1 = gameState.player1;
+    const p2 = gameState.player2;
     const draws = gameState.rounds.filter(r => r.winner === 'Draw').length;
 
-    let resultText =
-        p1 > p2 ? `🎉 Player 1 wins ${p1}–${p2} with ${draws} draws.` :
-        p2 > p1 ? `🎉 Player 2 wins ${p2}–${p1} with ${draws} draws.` :
-        `🤝 It's a tie! ${p1} each with ${draws} draws.`;
+    let resultText;
+    if (p1.score > p2.score) {
+        resultText = `🎉 Player 1 wins ${p1.score}–${p2.score} with ${draws} draws!`;
+    } else if (p2.score > p1.score) {
+        resultText = `🎉 Player 2 wins ${p2.score}–${p1.score} with ${draws} draws!`;
+    } else {
+        resultText = `🤝 It's a tie! ${p1.score} each with ${draws} draws.`;
+    }
 
-    resultsText.textContent = resultText;
-    finalResults.classList.remove('hidden');
+    elements.resultsText.innerHTML = resultText;
+    elements.finalResults.classList.remove('hidden');
     updateMessage("Game over! See final results below.");
 }
 
-// Init
-window.onload = () => {
-    createSetupGrid(player1Grid, 1);
-    createSetupGrid(player2Grid, 2);
-};
-document.getElementById('restartBtn').addEventListener('click', () => {
-    location.reload();
-});
-
-function toggleRules() {
-    const popup = document.getElementById('rulesPopup');
-    popup.classList.toggle('hidden');
+function updateMessage(text) {
+    elements.liveMessage.textContent = text;
 }
 
-// ✅ Close popup if clicked outside
-window.addEventListener('click', function(e) {
-    const popup = document.getElementById('rulesPopup');
-    const button = document.getElementById('rulesBtn');
-    if (!popup.contains(e.target) && !button.contains(e.target)) {
-        popup.classList.add('hidden');
-    }
-});
+function toggleRules() {
+    elements.rulesPopup.classList.toggle('hidden');
+}
 
-// ✅ Ensure everything loads correctly
-document.addEventListener('DOMContentLoaded', () => {
-    createSetupGrid(player1Grid, 1);
-    createSetupGrid(player2Grid, 2);
-
-    document.getElementById('restartBtn').addEventListener('click', () => {
-        location.reload();
-    });
-
-    document.getElementById('rulesBtn').addEventListener('click', toggleRules);
-});
+document.addEventListener('DOMContentLoaded', initGame);
